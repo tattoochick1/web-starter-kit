@@ -30,6 +30,7 @@ import del from 'del';
 import runSequence from 'run-sequence';
 import browserSync from 'browser-sync';
 import swPrecache from 'sw-precache';
+import swBuild from 'sw-build';
 import gulpLoadPlugins from 'gulp-load-plugins';
 import {output as pagespeed} from 'psi';
 import pkg from './package.json';
@@ -39,7 +40,7 @@ const reload = browserSync.reload;
 
 // Lint JavaScript
 gulp.task('lint', () =>
-  gulp.src(['app/scripts/**/*.js','!node_modules/**'])
+  gulp.src(['app/scripts/**/*.js', '!node_modules/**'])
     .pipe($.eslint())
     .pipe($.eslint.format())
     .pipe($.if(!browserSync.active, $.eslint.failAfterError()))
@@ -216,19 +217,31 @@ gulp.task('pagespeed', cb =>
 
 // Copy over the scripts that are used in importScripts as part of the generate-service-worker task.
 gulp.task('copy-sw-scripts', () => {
-  return gulp.src(['node_modules/sw-toolbox/sw-toolbox.js', 'app/scripts/sw/runtime-caching.js'])
-    .pipe(gulp.dest('dist/scripts/sw'));
+  return gulp.src([
+    'node_modules/sw-lib/**/*.js'
+  ])
+  .pipe(gulp.dest('dist/third_party/sw-lib/'));
 });
 
-// See http://www.html5rocks.com/en/tutorials/service-worker/introduction/ for
-// an in-depth explanation of what service workers are and why you should care.
-// Generate a service worker file that will provide offline functionality for
-// local resources. This should only be done for the 'dist' directory, to allow
-// live reload to work as expected when serving from the 'app' directory.
-gulp.task('generate-service-worker', ['copy-sw-scripts'], () => {
+const useSWBuild = () => {
+  const rootDir = 'dist';
+
+  return swBuild.generateFileManifest({
+    dest: path.join(rootDir, 'manifest.js'),
+    rootDirectory: rootDir,
+    globPatterns: [
+      `${rootDir}/images/**/*`,
+      `${rootDir}/scripts/**/*.js`,
+      `${rootDir}/styles/**/*.css`,
+      `${rootDir}/*.{html,json}`
+    ],
+    globIgnores: []
+  });
+};
+
+const useSWPrecache = () => {
   const rootDir = 'dist';
   const filepath = path.join(rootDir, 'service-worker.js');
-
   return swPrecache.write(filepath, {
     // Used to avoid cache conflicts when serving on localhost.
     cacheId: pkg.name || 'web-starter-kit',
@@ -249,6 +262,15 @@ gulp.task('generate-service-worker', ['copy-sw-scripts'], () => {
     // glob always use '/'.
     stripPrefix: rootDir + '/'
   });
+};
+
+// See http://www.html5rocks.com/en/tutorials/service-worker/introduction/ for
+// an in-depth explanation of what service workers are and why you should care.
+// Generate a service worker file that will provide offline functionality for
+// local resources. This should only be done for the 'dist' directory, to allow
+// live reload to work as expected when serving from the 'app' directory.
+gulp.task('generate-service-worker', ['copy-sw-scripts'], () => {
+  return useSWBuild();
 });
 
 // Load custom tasks from the `tasks` directory
