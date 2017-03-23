@@ -1,0 +1,1 @@
+{"rootDirectory":"dist/","globPatterns":["dist/**/*.{html,ico,txt,svg,png,js,json,webapp,map,css}"],"serviceWorkerName":"sw.js","globIgnores":["dist/sw.js"]}
